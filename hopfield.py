@@ -9,6 +9,12 @@ Created on Tue Feb  2 03:05:55 2021
 import numpy as np
 
 def sign(x):
+    if x>=0:
+        return 1
+    else:
+        return 0
+
+def arrsign(x):
     sign = np.empty(x.shape,dtype=int)
     sign[x >= 0] = 1
     sign[x < 0] = -1
@@ -75,21 +81,37 @@ class HopfieldNetwork:
         s_aux[:] = s[:]
         self.s = s_aux
         
-    def evolve(self, t_max=50, print_arrays=False):
+    def evolve(self, t_max=100, print_arrays=False, sync=True):
         """Evoluciona la red hasta que llegue al estado estacionario o\
-            a t_max=50."""
+            a t_max."""
         s_aux = np.ones(self.n, dtype=int)
         conv = False
         if print_arrays:
             print()
-        for t in range(t_max):
-            if print_arrays:
-                print('    t = {}:    s = {}'.format(t, self.s))
-            s_aux[:] = self.s[:]
-            self.s = sign(np.matmul(self.w, s_aux))
-            if np.array_equal(s_aux, self.s):
-                conv = True
-                break
+        if sync:
+            for t in range(t_max):
+                if print_arrays:
+                    print('    t = {}:    s = {}'.format(t, self.s))
+                s_aux[:] = self.s[:]
+                self.s = arrsign(np.matmul(self.w, s_aux))
+                if np.array_equal(s_aux, self.s):
+                    conv = True
+                    break
+        else:
+            for t in range(t_max):
+                if print_arrays:
+                    print('    t = {}:    s = {}'.format(t, self.s))
+                s_aux[:] = self.s[:]
+                for i in range(self.n):
+                        #calculo h_i(t)
+                        h = 0
+                        for j in range(self.n):
+                            h += np.matmul(self.w[:,i],self.s)
+                        #actualizo s_i(t)
+                        self.s[i] = sign(h)
+                if np.array_equal(s_aux, self.s):
+                    conv = True
+                    break
         t_conv = t
         return conv, t_conv
 
