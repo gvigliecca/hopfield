@@ -103,12 +103,11 @@ class HopfieldNetwork:
                     print('    t = {}:    s = {}'.format(t, self.s))
                 s_aux[:] = self.s[:]
                 for i in range(self.n):
-                        #calculo h_i(t)
-                        h = 0
-                        for j in range(self.n):
-                            h += np.matmul(self.w[:,i],self.s)
-                        #actualizo s_i(t)
-                        self.s[i] = sign(h)
+                    #calculo h_i(t)
+                    h = 0
+                    h = np.dot(self.w[:,i],self.s)
+                    #actualizo s_i(t)
+                    self.s[i] = sign(h)
                 if np.array_equal(s_aux, self.s):
                     conv = True
                     break
