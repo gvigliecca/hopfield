@@ -8,13 +8,27 @@ Created on Tue Feb  2 03:05:55 2021
 
 import numpy as np
 
+def stosign(x,T):
+    """Versión estocástica de la función signo."""
+    #debo convertir las a variables a floats de cuadruple precision para que
+    # no haya overflow
+    x = np.array(x, dtype=np.float128)
+    T = np.array(T, dtype=np.float128)
+    g = 1./(1. + np.exp(-2.*x/T))
+    stosign = np.random.choice([1, -1], p=[g, 1 - g])
+    return stosign
+
 def sign(x):
+    """Calcula el signo de un float"""
+    #tuve que definir una función signo porque por defecto viene sgn(0)=0.
     if x>=0:
         return 1
     else:
         return -1
 
 def arrsign(x):
+    """Dado un arreglo de numpy calcula el signo elemento a elemento y
+devuelve el arreglo de signos"""
     sign = np.empty(x.shape,dtype=int)
     sign[x >= 0] = 1
     sign[x < 0] = -1
@@ -52,7 +66,7 @@ linealmente independientes."""
     return array
 
 def generate_random_pattern(n):
-    """Genera un patrón aleatorio de longitud n."""
+    """Genera un patrón binario aleatorio de longitud n."""
     s = np.random.choice([-1,1], size=n)
     return s
 
@@ -67,13 +81,20 @@ def is_in(s, xi):
             return is_in, mu
     return is_in, None
 
+def energy(s,w):
+    """"Calcula la energía de la red"""
+    H = -0.5*np.linalg.multi_dot([s,w,s.T])
+    return H
+
 class HopfieldNetwork:
-    def __init__(self, n, p):
+    def __init__(self, n, p, sync=False, T=0):
         self.n = n #numero de neuronas
         self.p = p #numero de patrones
         self.s = np.ones(n, dtype=int)
         self.xi = np.ones([n, p], dtype=int)
         self.w = np.ones([n, n], dtype=int)
+        self.sync = sync
+        self.T = T
 
     def set_conf(self, s):
         """Coloca la red en la configuración s."""
@@ -81,22 +102,29 @@ class HopfieldNetwork:
         s_aux[:] = s[:]
         self.s = s_aux
         
-    def evolve(self, t_max=100, print_arrays=False, sync=True):
+    def evolve(self, t_max=100, print_arrays=False, plot_H_vals=False):
         """Evoluciona la red hasta que llegue al estado estacionario o\
             a t_max."""
+        H_vals = []
         s_aux = np.ones(self.n, dtype=int)
         conv = False
         if print_arrays:
             print()
-        if sync:
+        #actualización sincrónica
+        if self.sync:
             for t in range(t_max):
                 if print_arrays:
                     print('    t = {}:    s = {}'.format(t, self.s))
                 s_aux[:] = self.s[:]
                 self.s = arrsign(np.matmul(self.w, s_aux))
+                if plot_H_vals:
+                    H = energy(self.s,self.w)
+                    H_vals.append(H)
+                    #print(H)
                 if np.array_equal(s_aux, self.s):
                     conv = True
                     break
+        #actualización asincrónica
         else:
             for t in range(t_max):
                 if print_arrays:
@@ -107,13 +135,20 @@ class HopfieldNetwork:
                     h = 0
                     h = np.dot(self.w[i],self.s)
                     #actualizo s_i(t)
-                    self.s[i] = sign(h)
+                    if self.T == 0:
+                        self.s[i] = sign(h)
+                    else:
+                        self.s[i] = stosign(h, self.T)
+                if plot_H_vals:
+                    H = energy(self.s,self.w)
+                    H_vals.append(H)
+                    #print(H)
                 if np.array_equal(s_aux, self.s):
                     conv = True
                     break
         t_conv = t
-        return conv, t_conv
-
+        return conv, t_conv, np.array(H_vals)
+        
     def is_a_memory(self):
         """Chequea si la configuración actual coincide con alguna de las
 memorias o sus negativos."""
